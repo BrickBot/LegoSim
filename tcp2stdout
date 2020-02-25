@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+
+# TCP server (iterative)
+
+#require 'sys/socket.ph';
+use Socket;
+
+sub unbuffer {
+    local($channel) = @_;
+    local($oldchannel);
+
+    $oldchannel = select($channel);
+    $| = 1;
+    select($oldchannel);
+}
+
+sub interrupted {
+    print STDERR "\nClosing connection to peer (interrupt)\n";
+    close(S);
+    exit 1;
+}
+
+$SIG{'INT'} = 'interrupted';
+
+# Server-port ist 2345, wenn kein Argument angegeben
+$srvport = 2345 unless ($srvport = shift);
+
+# Wenn port symbolisch angegeben, ermittle numerischen port 
+($name, $aliases, $srvport) = getservbyname($srvport, 'tcp')
+     unless $srvport =~ /^\d+$/;
+
+$sockaddr = 'S n a4 x8';
+$server = pack($sockaddr, &AF_INET, $srvport, "\0\0\0\0");
+
+# (1) TCP socket anfordern
+socket(S, &AF_INET, &SOCK_STREAM, 0) || 
+    die "Cannot create socket: $!\n";
+# (2) lokale Adresse an socket binden
+bind(S, $server) || 
+    die "Cannot bind my address: $!\n";
+# (3) OS ankuendigen: wir koennen Verbindungen annehmen
+listen(S, 5) || 
+    die "Cannot listen on socket: $!\n";
+
+# kein I/O buffering auf dem socket
+unbuffer(S);
+
+#while (1) {
+     # (4) wir blockieren uns, bis Verbindung ansteht
+#     print STDERR "Accepting connections on port #$srvport\n";
+     ($client = accept(NS,S)) 
+         || die "Cannot block on accept: $!\n";
+
+     # (5) Verbindung ist hergestellt
+     ($cltfamily,$cltport,$cltaddr) = unpack($sockaddr,$client);
+#     print STDERR "Accepted connection from ";
+#     print STDERR join('.',unpack('C4',$cltaddr)).", port #$cltport\n";
+
+     # set autoflush (flush out everything printed right away)
+     $| = 1;
+
+     # kopiere TCP-Byte-Strom auf STDOUT
+     while (<NS>) {
+        print;
+     }
+#}

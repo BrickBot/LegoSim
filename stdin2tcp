@@ -1,0 +1,64 @@
+#!/usr/bin/perl
+
+# TCP client
+
+#require 'sys/socket.ph';
+use Socket;
+
+sub unbuffer {
+    local($channel) = @_;
+    local($oldchannel);
+
+    $oldchannel = select($channel);
+    $| = 1;
+    select($oldchannel);
+}
+
+sub interrupted {
+    print STDERR "\nClosing connection to peer (interrupt)\n";
+    close(S);
+    exit 1;
+}
+
+$SIG{'INT'} = 'interrupted';
+
+$srvname = 'localhost'  unless ($srvname = shift);
+$srvport = 2345         unless ($srvport = shift);
+$slptime = 0            unless ($slptime = shift);
+
+# Wenn port symbolisch angegeben, ermittle numerischen port
+($name, $aliases, $srvport) = getservbyname($srvport, 'tcp')
+     unless $srvport =~ /^\d+$/;
+
+sleep($slptime);
+
+# Ermittle IP-Adresse des Servers aus Hostnamen
+($name, $aliases, $type, $len, @srvaddr) = gethostbyname($srvname);
+
+$sockaddr = 'S n a4 x8';
+$server = pack($sockaddr, &AF_INET, $srvport, $srvaddr[0]);
+
+
+# (1) TCP socket anfordern
+socket(S, &AF_INET, &SOCK_STREAM, 0) || 
+    die "Cannot create socket: $!\n";
+# (2) Verbindung aufbauen
+connect(S, $server) || 
+    die "Cannot connect: $!\n";
+
+# (3) Verbindung ist hergestellt
+print STDERR "Connected to $srvname, port #$srvport\n";
+
+# kein I/O buffering auf dem socket
+unbuffer(S);
+
+# kopiere STDIN auf die TCP-Verbindung
+while (<>) {
+    print S;
+}
+
+print STDERR "Closing connection to peer\n";
+close(S);
+
+exit 0;
+
